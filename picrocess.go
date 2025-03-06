@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/color"
 	"image/draw"
+	"image/gif"
 	"image/jpeg"
 	"image/png"
 	"net/http"
@@ -95,7 +96,7 @@ func NewImage(w, h uint, color *RGBA) *Image {
 	}
 	for x := range respond.Pixel {
 		respond.Pixel[x] = make(map[uint]*RGBA)
-		for y := range x {
+		for y := range respond.Pixel[x] {
 			respond.Pixel[x][y] = color
 		}
 	}
@@ -154,7 +155,7 @@ func (i *Image) Set(x, y uint, c *RGBA) {
 
 func (i *Image) Overlay(i2 *Image, o *Offset) {
 	for x := range i2.Pixel {
-		for y := range x {
+		for y := range i2.Pixel[x] {
 			pixel := i2.At(x, y)
 			if pixel == nil {
 				pixel = &RGBA{0, 0, 0, 0}
@@ -185,7 +186,7 @@ func (i *Image) Resize(w, h uint) {
 	newPixel := make(map[uint]map[uint]*RGBA)
 	for x := range i.Pixel {
 		newPixel[x] = make(map[uint]*RGBA)
-		for y := range x {
+		for y := range i.Pixel[x] {
 			srcX := x * i.Width / w
 			srcY := y * i.Height / h
 			pixel := i.At(srcX, srcY)
@@ -208,7 +209,7 @@ func (i *Image) Crop(r *Rect) *Image {
 	}
 	for x := range cropped.Pixel {
 		cropped.Pixel[x] = make(map[uint]*RGBA)
-		for y := range x {
+		for y := range cropped.Pixel[x] {
 			srcX := r.W1 + x
 			srcY := r.H1 + y
 			cropped.Pixel[x][y] = i.At(srcX, srcY)
@@ -235,7 +236,7 @@ func (i *Image) DrawString(font *truetype.Font, c *RGBA, o *Offset, size float64
 		if i.Pixel[x] == nil {
 			i.Pixel[x] = make(map[uint]*RGBA)
 		}
-		for y := range x {
+		for y := range i.Pixel[x] {
 			r, g, b, a := img.RGBAAt(int(x), int(y)).RGBA()
 			i.Pixel[x][y] = &RGBA{R: uint8(r), G: uint8(g), B: uint8(b), A: uint8(a)}
 		}
@@ -246,7 +247,7 @@ func (i *Image) DrawString(font *truetype.Font, c *RGBA, o *Offset, size float64
 func (i *Image) Render() *image.RGBA {
 	img := image.NewRGBA(image.Rect(0, 0, int(i.Width), int(i.Height)))
 	for x := range i.Pixel {
-		for y := range x {
+		for y := range i.Pixel[x] {
 			pixel := i.Pixel[x][y]
 			if pixel == nil {
 				pixel = &RGBA{0, 0, 0, 0}
@@ -328,4 +329,81 @@ func (i *Image) SaveAsJPG(filename string, quality int) error {
 	defer file.Close()
 	opt := &jpeg.Options{Quality: quality}
 	return jpeg.Encode(file, img, opt)
+}
+
+type GIF struct {
+	Delay []int
+	Image []*image.RGBA
+}
+
+func NewGIF() *GIF {
+	return &GIF{
+		Delay: make([]int, 0),
+		Image: make([]*image.RGBA, 0),
+	}
+}
+
+func (gf *GIF) Append(image *Image, delay int) {
+	gf.Delay = append(gf.Delay, delay)
+	gf.Image = append(gf.Image, image.Render())
+}
+
+func (i *GIF) ToGIF() ([]byte, error) {
+	var result []*image.Paletted
+	var disposal []byte
+	for _, key := range i.Image {
+		palette := Palette(key)
+		palettedImage := image.NewPaletted(key.Bounds(), palette)
+		for y := 0; y < palettedImage.Bounds().Dy(); y++ {
+			for x := 0; x < palettedImage.Bounds().Dx(); x++ {
+				palettedImage.Set(x, y, key.At(x, y))
+			}
+		}
+		result = append(result, palettedImage)
+		disposal = append(disposal, gif.DisposalBackground)
+	}
+	var buf bytes.Buffer
+	err := gif.EncodeAll(&buf, &gif.GIF{
+		Image:    result,
+		Delay:    i.Delay,
+		Disposal: disposal,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func (i *GIF) SaveAsGIF(filename string) error {
+	data, err := i.ToGIF()
+	if err != nil {
+		return err
+	}
+	file, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	_, err = file.Write(data)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func Palette(frame *image.RGBA) color.Palette {
+	colorSet := make(map[color.Color]struct{})
+	for y := 0; y < frame.Bounds().Dy(); y++ {
+		for x := 0; x < frame.Bounds().Dx(); x++ {
+			colorSet[frame.At(x, y)] = struct{}{}
+		}
+	}
+	var colors []color.Color
+	for c := range colorSet {
+		colors = append(colors, c)
+	}
+	if len(colors) > 256 {
+		colors = colors[:256]
+	}
+	return colors
 }
