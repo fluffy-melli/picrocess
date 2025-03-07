@@ -11,8 +11,11 @@ import (
 	"net/http"
 	"os"
 
+	_ "golang.org/x/image/webp"
+
 	"github.com/golang/freetype"
 	"github.com/golang/freetype/truetype"
+	"golang.org/x/image/math/fixed"
 )
 
 type RGBA struct {
@@ -70,7 +73,11 @@ func NewOffset(w, h uint) *Offset {
 	}
 }
 
-func LoadFont(filename string) (*truetype.Font, error) {
+type Font struct {
+	face *truetype.Font
+}
+
+func LoadFont(filename string) (*Font, error) {
 	fontBytes, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
@@ -79,25 +86,39 @@ func LoadFont(filename string) (*truetype.Font, error) {
 	if err != nil {
 		return nil, err
 	}
-	return fontFace, nil
+	return &Font{face: fontFace}, nil
+}
+
+func (f *Font) TextSize(size float64, text string) (uint, uint) {
+	var width uint
+	var height uint
+	fontFace := truetype.NewFace(f.face, &truetype.Options{Size: size})
+	for _, c := range text {
+		bounds, advance, _ := fontFace.GlyphBounds(c)
+		width += uint(advance.Ceil())
+		if bounds.Max.Y > fixed.Int26_6(height) {
+			height = uint(bounds.Max.Y.Ceil())
+		}
+	}
+	return width, height
 }
 
 type Image struct {
 	Width  uint
 	Height uint
-	Pixel  map[uint]map[uint]*RGBA // X / Y
+	Pixel  map[uint]map[uint]RGBA // X / Y
 }
 
 func NewImage(w, h uint, color *RGBA) *Image {
 	var respond = Image{
 		Width:  w,
 		Height: h,
-		Pixel:  make(map[uint]map[uint]*RGBA),
+		Pixel:  make(map[uint]map[uint]RGBA),
 	}
 	for x := uint(0); x < w; x++ {
-		respond.Pixel[x] = make(map[uint]*RGBA)
+		respond.Pixel[x] = make(map[uint]RGBA)
 		for y := uint(0); y < h; y++ {
-			respond.Pixel[x][y] = color
+			respond.Pixel[x][y] = *color
 		}
 	}
 	return &respond
@@ -140,17 +161,14 @@ func (i *Image) At(x, y uint) *RGBA {
 		return &RGBA{0, 0, 0, 0}
 	}
 	pixel := i.Pixel[x][y]
-	if pixel == nil {
-		pixel = &RGBA{0, 0, 0, 0}
-	}
-	return pixel
+	return &pixel
 }
 
 func (i *Image) Set(x, y uint, c *RGBA) {
 	if i.Pixel[x] == nil {
-		i.Pixel[x] = map[uint]*RGBA{}
+		i.Pixel[x] = map[uint]RGBA{}
 	}
-	i.Pixel[x][y] = c
+	i.Pixel[x][y] = *c
 }
 
 func (i *Image) Overlay(i2 *Image, o *Offset) {
@@ -183,17 +201,17 @@ func (i *Image) Overlay(i2 *Image, o *Offset) {
 }
 
 func (i *Image) Resize(w, h uint) {
-	newPixel := make(map[uint]map[uint]*RGBA)
-	for x := range i.Pixel {
-		newPixel[x] = make(map[uint]*RGBA)
-		for y := range i.Pixel[x] {
+	newPixel := make(map[uint]map[uint]RGBA)
+	for x := uint(0); x < w; x++ {
+		newPixel[x] = make(map[uint]RGBA)
+		for y := uint(0); y < w; y++ {
 			srcX := x * i.Width / w
 			srcY := y * i.Height / h
 			pixel := i.At(srcX, srcY)
 			if pixel == nil {
 				pixel = &RGBA{0, 0, 0, 0}
 			}
-			newPixel[x][y] = pixel
+			newPixel[x][y] = *pixel
 		}
 	}
 	i.Pixel = newPixel
@@ -205,25 +223,25 @@ func (i *Image) Crop(r *Rect) *Image {
 	cropped := &Image{
 		Width:  r.Dx(),
 		Height: r.Dy(),
-		Pixel:  make(map[uint]map[uint]*RGBA),
+		Pixel:  make(map[uint]map[uint]RGBA),
 	}
 	for x := range cropped.Pixel {
-		cropped.Pixel[x] = make(map[uint]*RGBA)
+		cropped.Pixel[x] = make(map[uint]RGBA)
 		for y := range cropped.Pixel[x] {
 			srcX := r.W1 + x
 			srcY := r.H1 + y
-			cropped.Pixel[x][y] = i.At(srcX, srcY)
+			cropped.Pixel[x][y] = *i.At(srcX, srcY)
 		}
 	}
 	return cropped
 }
 
-func (i *Image) DrawString(font *truetype.Font, c *RGBA, o *Offset, size float64, text string) error {
+func (i *Image) Text(font *Font, c *RGBA, o *Offset, size float64, text string) error {
 	img := i.Render()
 	pt := freetype.Pt(int(o.W), int(o.H)+int(size))
 	ctx := freetype.NewContext()
 	ctx.SetDPI(72)
-	ctx.SetFont(font)
+	ctx.SetFont(font.face)
 	ctx.SetFontSize(size)
 	ctx.SetClip(img.Bounds())
 	ctx.SetDst(img)
@@ -234,11 +252,11 @@ func (i *Image) DrawString(font *truetype.Font, c *RGBA, o *Offset, size float64
 	}
 	for x := range i.Pixel {
 		if i.Pixel[x] == nil {
-			i.Pixel[x] = make(map[uint]*RGBA)
+			i.Pixel[x] = make(map[uint]RGBA)
 		}
 		for y := range i.Pixel[x] {
 			r, g, b, a := img.RGBAAt(int(x), int(y)).RGBA()
-			i.Pixel[x][y] = &RGBA{R: uint8(r), G: uint8(g), B: uint8(b), A: uint8(a)}
+			i.Pixel[x][y] = RGBA{R: uint8(r), G: uint8(g), B: uint8(b), A: uint8(a)}
 		}
 	}
 	return nil
@@ -249,9 +267,6 @@ func (i *Image) Render() *image.RGBA {
 	for x := range i.Pixel {
 		for y := range i.Pixel[x] {
 			pixel := i.Pixel[x][y]
-			if pixel == nil {
-				pixel = &RGBA{0, 0, 0, 0}
-			}
 			img.Set(int(x), int(y), color.RGBA{pixel.R, pixel.G, pixel.B, pixel.A})
 		}
 	}
@@ -264,10 +279,10 @@ func Render(i *image.RGBA) *Image {
 	img := &Image{
 		Width:  width,
 		Height: height,
-		Pixel:  make(map[uint]map[uint]*RGBA),
+		Pixel:  make(map[uint]map[uint]RGBA),
 	}
 	for x := uint(0); x < width; x++ {
-		img.Pixel[x] = make(map[uint]*RGBA)
+		img.Pixel[x] = make(map[uint]RGBA)
 	}
 	for x := 0; x < int(width); x++ {
 		for y := 0; y < int(height); y++ {
@@ -276,7 +291,7 @@ func Render(i *image.RGBA) *Image {
 			if !ok {
 				rgba = color.RGBA{0, 0, 0, 0}
 			}
-			img.Pixel[uint(x)][uint(y)] = &RGBA{
+			img.Pixel[uint(x)][uint(y)] = RGBA{
 				R: rgba.R,
 				G: rgba.G,
 				B: rgba.B,
