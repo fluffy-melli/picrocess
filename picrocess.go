@@ -8,6 +8,7 @@ import (
 	"image/gif"
 	"image/jpeg"
 	"image/png"
+	"math"
 	"net/http"
 	"os"
 
@@ -186,6 +187,14 @@ func (i *Image) Overlay(i2 *Image, o *Offset) {
 				i.Set(o.W+x, o.H+y, pixel)
 				continue
 			}
+			if pixel.A == 255 && destPixel.A == 0 {
+				i.Set(o.W+x, o.H+y, pixel)
+				continue
+			}
+			if pixel.A == 0 && destPixel.A == 255 {
+				i.Set(o.W+x, o.H+y, destPixel)
+				continue
+			}
 			alpha := float64(pixel.A) / 255.0
 			blendR := (1-alpha)*float64(destPixel.R) + alpha*float64(pixel.R)
 			blendG := (1-alpha)*float64(destPixel.G) + alpha*float64(pixel.G)
@@ -234,6 +243,35 @@ func (i *Image) Crop(r *Rect) *Image {
 		}
 	}
 	return cropped
+}
+
+func (i *Image) Round(px uint) {
+	for x := uint(0); x < i.Width; x++ {
+		for y := uint(0); y < i.Height; y++ {
+			if x >= px && x <= i.Width-px || y >= px && y <= i.Width-px {
+				continue
+			}
+			var dx float64
+			var dy float64
+			if x <= px && y <= px {
+				dx = float64(px)
+				dy = float64(px)
+			} else if x <= px && y > i.Width-px {
+				dx = float64(px)
+				dy = float64(i.Height - px)
+			} else if x >= i.Width-px && y <= px {
+				dx = float64(i.Width - px)
+				dy = float64(px)
+			} else {
+				dx = float64(i.Width - px)
+				dy = float64(i.Height - px)
+			}
+			distance := math.Sqrt(math.Pow(float64(x)-dx, 2) + math.Pow(float64(y)-dy, 2))
+			if distance > float64(px) {
+				i.Set(x, y, &RGBA{0, 0, 0, 0})
+			}
+		}
+	}
 }
 
 func (i *Image) Text(font *Font, c *RGBA, o *Offset, size float64, text string) error {

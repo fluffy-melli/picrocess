@@ -124,6 +124,7 @@ func NewImage(w, h uint, color *RGBA) *Image
 - `Resize(w, h uint)`: Resize the image to the given width and height.
 - `Crop(r *Rect) *Image`: Crop the image to a rectangle.
 - `Text(font *Font, c *RGBA, o *Offset, size float64, text string)`: Render text on the image.
+- `Round(px uint)`: Apply rounded corners to the image with a specified radius in pixels.
 - `Render() *image.RGBA`: Render the image as an `image.RGBA` type.
 - `ToPNGByte() ([]byte, error)`: Convert the image to a PNG byte slice.
 - `ToJPGByte(quality int) ([]byte, error)`: Convert the image to a JPG byte slice.
