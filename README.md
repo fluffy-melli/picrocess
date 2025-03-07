@@ -1,138 +1,162 @@
-# Picrocess - Go 이미지 처리 라이브러리
+# Picrocess - A Go Image Processing Library
 
-`picrocess`는 Go 언어로 이미지 처리 기능을 제공하는 라이브러리입니다. 아래는 주요 기능과 사용법 예제입니다.
+## Overview
 
-## 설치
+Picrocess is a Go package designed for handling and manipulating images in various formats, including PNG, JPEG, and GIF. It supports a variety of operations such as resizing, cropping, overlaying, and rendering text on images. Additionally, it offers functionality for creating and manipulating GIFs.
 
-다음 명령어를 사용하여 `picrocess` 모듈을 다운로드할 수 있습니다.
+## Features
 
-```go
-$ go get github.com/fluffy-melli/picrocess
+- **Image Manipulation**: Resize, crop, and overlay images.
+- **Text Rendering**: Add custom text to images with configurable font size and color.
+- **Image Formats**: Support for PNG, JPEG, and GIF encoding and decoding.
+- **GIF Creation**: Generate GIFs with multiple frames and adjustable delays.
+- **Font Handling**: Load and use TrueType fonts for text rendering.
+
+## Installation
+
+To install Picrocess, use the following Go command:
+
+```bash
+go get github.com/fluffy-melli/picrocess
 ```
 
-## 코드 예제
+## Example Usage
 
-### 1. 기본 이미지 생성
-
-#### 1.1. 500x700 크기의 투명 이미지 만들기
+Below is a simple example that demonstrates how to use Picrocess to load an image, overlay text, and save it as a PNG:
 
 ```go
-base := picrocess.NewImage(500, 700, picrocess.NewRGBA(0, 0, 0, 0))
-```
+package main
 
-#### 1.2. 300x300 크기의 빨간 반투명 이미지 만들기
+import (
+	"fmt"
+	"log"
+	"os"
 
-```go
-red := picrocess.NewImage(300, 300, picrocess.NewRGBA(255, 0, 0, 105))
-```
+	"github.com/fluffy-melli/picrocess"
+)
 
-### 2. 이미지 로드
+func main() {
+	// Load an image
+	img, err := picrocess.LoadImage("input.jpg")
+	if err != nil {
+		log.Fatal(err)
+	}
 
-#### 2.1. 파일에서 이미지 불러오기
+	// Load a font
+	font, err := picrocess.LoadFont("path/to/font.ttf")
+	if err != nil {
+		log.Fatal(err)
+	}
 
-```go
-image, err := picrocess.LoadImage("./~.png")
-if err != nil {
-    panic(err)
+	// Add text to the image
+	err = img.Text(font, picrocess.NewRGBA(255, 0, 0, 255), picrocess.NewOffset(100, 100), 24, "Hello, World!")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Save the modified image as a PNG
+	err = img.SaveAsPNG("output.png")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("Image saved as output.png")
 }
 ```
 
-#### 2.2. URL 에서 이미지 불러오기
+## Types
+
+### `RGBA`
+
+The `RGBA` type represents a color with Red, Green, Blue, and Alpha (transparency) channels.
+
+#### Constructor
 
 ```go
-image, err := picrocess.ImageURL("https://~")
-if err != nil {
-    panic(err)
-}
+func NewRGBA(r, g, b uint8, a ...uint8) *RGBA
 ```
 
-#### 2.3. 폰트 파일 로드
+### `Rect`
+
+The `Rect` type represents a rectangle with top-left and bottom-right coordinates.
+
+#### Constructor
 
 ```go
-font, err := picrocess.LoadFont("./NanumGothic.ttf")
-if err != nil {
-    panic(err)
-}
+func NewRect(w1, h1, w2, h2 uint) *Rect
 ```
 
-### 3. 이미지 조작
+### `Offset`
 
-#### 3.1. 이미지 크기 변경
+The `Offset` type represents an offset for positioning elements.
 
-이미지의 크기를 200x200으로 축소합니다.
+#### Constructor
 
 ```go
-image.Resize(200, 200)
+func NewOffset(w, h uint) *Offset
 ```
 
-#### 3.2. 다른 이미지를 투명 이미지에 추가
+### `Font`
 
-빨간 반투명 이미지를 100, 200 좌표에 추가합니다.
+The `Font` type represents a TrueType font used for rendering text.
+
+#### Constructor
 
 ```go
-base.Overlay(red, picrocess.NewOffset(100, 200))
+func LoadFont(filename string) (*Font, error)
 ```
 
-#### 3.3. 불러온 이미지를 투명 이미지에 추가
+### `Image`
 
-불러온 이미지를 0, 0 좌표에 추가합니다.
+The `Image` type represents an image with width, height, and a pixel map.
+
+#### Constructor
 
 ```go
-base.Overlay(image, picrocess.NewOffset(0, 0))
+func NewImage(w, h uint, color *RGBA) *Image
 ```
 
-#### 3.4. 텍스트 추가
+#### Methods
 
-폰트를 사용하여 노란색 텍스트 `~`를 10, 150 좌표에 50크기로 추가합니다.
+- `At(x, y uint) *RGBA`: Get the color of a pixel at (x, y).
+- `Set(x, y uint, c *RGBA)`: Set the color of a pixel at (x, y).
+- `Overlay(i2 *Image, o *Offset)`: Overlay another image on top of the current image.
+- `Resize(w, h uint)`: Resize the image to the given width and height.
+- `Crop(r *Rect) *Image`: Crop the image to a rectangle.
+- `Text(font *Font, c *RGBA, o *Offset, size float64, text string)`: Render text on the image.
+- `Render() *image.RGBA`: Render the image as an `image.RGBA` type.
+- `ToPNGByte() ([]byte, error)`: Convert the image to a PNG byte slice.
+- `ToJPGByte(quality int) ([]byte, error)`: Convert the image to a JPG byte slice.
+- `SaveAsPNG(filename string) error`: Save the image as a PNG file.
+- `SaveAsJPG(filename string, quality int) error`: Save the image as a JPG file.
+
+### `GIF`
+
+The `GIF` type represents an animated GIF with multiple frames and delays.
+
+#### Constructor
 
 ```go
-base.DrawString(font, picrocess.NewRGBA(255, 255, 0), picrocess.NewOffset(10, 150), 50, "~")
+func NewGIF() *GIF
 ```
 
-### 4. 이미지 저장
+#### Methods
 
-#### 4.1. 이미지 저장
+- `Append(image *Image, delay int)`: Append a frame to the GIF with a specified delay.
+- `ToGIFByte() ([]byte, error)`: Convert the GIF to a byte slice.
+- `SaveAsGIF(filename string) error`: Save the GIF as a file.
 
-이미지를 PNG 형식으로 저장합니다.
+## Supported Formats
 
-```go
-base.SaveAsPNG("./index.png")
-```
+- **PNG**: Using `png.Encode` and `png.Decode` for encoding and decoding.
+- **JPEG**: Using `jpeg.Encode` and `jpeg.Decode` for encoding and decoding.
+- **GIF**: Using `gif.EncodeAll` and `gif.DecodeAll` for encoding and decoding.
 
-#### 4.2. 이미지 자르기
+## Notes
 
-투명 이미지의 0, 0 좌표에서 500, 500까지 잘라서 새로운 이미지로 저장합니다.
+- The library requires the `golang.org/x/image/webp` package for WebP support.
+- The `github.com/golang/freetype` package is used for rendering text with TrueType fonts.
 
-```go
-cor := base.Crop(picrocess.NewRect(0, 0, 500, 500))
-cor.SaveAsPNG("./index2.png")
-```
+## License
 
-### 5. 이미지 `[]byte`로 변환
-
-이미지를 `[]byte`로 변환하여 저장할 수도 있습니다. `ToPNG`와 `ToJPG` 메서드를 사용하면 이미지를 각각 PNG와 JPG 형식으로 변환할 수 있습니다.
-
-#### 5.1. 이미지 PNG 형식으로 `[]byte`로 변환
-
-```go
-pngData, err := base.ToPNG()
-if err != nil {
-    panic(err)
-}
-// pngData는 []byte 형식의 PNG 이미지 데이터입니다.
-```
-
-#### 5.2. 이미지 JPG 형식으로 `[]byte`로 변환
-
-```go
-jpgData, err := base.ToJPG(90) // 90은 JPG 품질(0-100)입니다.
-if err != nil {
-    panic(err)
-}
-// jpgData는 []byte 형식의 JPG 이미지 데이터입니다.
-```
-
-
-## 라이센스
-
-이 라이브러리는 MIT 라이센스를 따릅니다. 자세한 내용은 `LICENSE` 파일을 참고하세요.
+This library is open source and available under the MIT License.
