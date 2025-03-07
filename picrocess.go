@@ -94,9 +94,9 @@ func NewImage(w, h uint, color *RGBA) *Image {
 		Height: h,
 		Pixel:  make(map[uint]map[uint]*RGBA),
 	}
-	for x := range respond.Pixel {
+	for x := uint(0); x < w; x++ {
 		respond.Pixel[x] = make(map[uint]*RGBA)
-		for y := range respond.Pixel[x] {
+		for y := uint(0); y < h; y++ {
 			respond.Pixel[x][y] = color
 		}
 	}
@@ -287,23 +287,39 @@ func Render(i *image.RGBA) *Image {
 	return img
 }
 
-func (i *Image) ToPNG() ([]byte, error) {
+func (i *Image) ToPNGByte() ([]byte, error) {
+	buffer, err := i.ToPNGBuffer()
+	if err != nil {
+		return nil, err
+	}
+	return buffer.Bytes(), nil
+}
+
+func (i *Image) ToJPGByte(quality int) ([]byte, error) {
+	buffer, err := i.ToJPGBuffer(quality)
+	if err != nil {
+		return nil, err
+	}
+	return buffer.Bytes(), nil
+}
+
+func (i *Image) ToPNGBuffer() (*bytes.Buffer, error) {
 	img := i.Render()
 	var buf bytes.Buffer
 	if err := png.Encode(&buf, img); err != nil {
 		return nil, err
 	}
-	return buf.Bytes(), nil
+	return &buf, nil
 }
 
-func (i *Image) ToJPG(quality int) ([]byte, error) {
+func (i *Image) ToJPGBuffer(quality int) (*bytes.Buffer, error) {
 	img := i.Render()
 	var buf bytes.Buffer
 	opt := &jpeg.Options{Quality: quality}
 	if err := jpeg.Encode(&buf, img, opt); err != nil {
 		return nil, err
 	}
-	return buf.Bytes(), nil
+	return &buf, nil
 }
 
 func (i *Image) SaveAsPNG(filename string) error {
@@ -348,7 +364,15 @@ func (gf *GIF) Append(image *Image, delay int) {
 	gf.Image = append(gf.Image, image.Render())
 }
 
-func (i *GIF) ToGIF() ([]byte, error) {
+func (i *GIF) ToGIFByte() ([]byte, error) {
+	buffer, err := i.ToGIFBuffer()
+	if err != nil {
+		return nil, err
+	}
+	return buffer.Bytes(), nil
+}
+
+func (i *GIF) ToGIFBuffer() (*bytes.Buffer, error) {
 	var result []*image.Paletted
 	var disposal []byte
 	for _, key := range i.Image {
@@ -371,11 +395,11 @@ func (i *GIF) ToGIF() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return buf.Bytes(), nil
+	return &buf, nil
 }
 
 func (i *GIF) SaveAsGIF(filename string) error {
-	data, err := i.ToGIF()
+	data, err := i.ToGIFByte()
 	if err != nil {
 		return err
 	}
@@ -392,10 +416,10 @@ func (i *GIF) SaveAsGIF(filename string) error {
 }
 
 func Palette(frame *image.RGBA) color.Palette {
-	colorSet := make(map[color.Color]struct{})
+	colorSet := make(map[color.RGBA]struct{})
 	for y := 0; y < frame.Bounds().Dy(); y++ {
 		for x := 0; x < frame.Bounds().Dx(); x++ {
-			colorSet[frame.At(x, y)] = struct{}{}
+			colorSet[frame.RGBAAt(x, y)] = struct{}{}
 		}
 	}
 	var colors []color.Color
