@@ -2,12 +2,13 @@
 
 ## Overview
 
-Picrocess is a Go package designed for handling and manipulating images in various formats, including PNG, JPEG, and GIF. It supports a variety of operations such as resizing, cropping, overlaying, and rendering text on images. Additionally, it offers functionality for creating and manipulating GIFs.
+Picrocess is a Go package designed for handling and manipulating images in various formats, including PNG, JPEG, and GIF. It supports a variety of operations such as resizing, cropping, overlaying, and rendering text on images. Additionally, it offers functionality for creating and manipulating GIFs and generating QR codes.
 
 ## Features
 
 - **Image Manipulation**: Resize, crop, and overlay images.
 - **Text Rendering**: Add custom text to images with configurable font size and color.
+- **QR Code Generations**: Create customizable QR codes with configurable size and colors.
 - **Image Formats**: Support for PNG, JPEG, and GIF encoding and decoding.
 - **GIF Creation**: Generate GIFs with multiple frames and adjustable delays.
 - **Font Handling**: Load and use TrueType fonts for text rendering.
@@ -30,37 +31,43 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
 
 	"github.com/fluffy-melli/picrocess"
 )
 
 func main() {
-	// Load an image
-	img, err := picrocess.LoadImage("input.jpg")
+	// Define the content for the QR code (URL in this case)
+	content := "https://www.example.com"
+	
+	// Generate the QR code with the specified content, size, and colors
+	qrCode, err := picrocess.NewQRCode(content, 256, picrocess.NewRGBA(0, 0, 0, 255), picrocess.NewRGBA(255, 255, 255, 255))
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(err) // Handle error if QR code generation fails
 	}
 
-	// Load a font
-	font, err := picrocess.LoadFont("path/to/font.ttf")
+	// Load the specified font for text rendering
+	font, err := picrocess.LoadFont("HakgyoansimDunggeunmisoTTF-B.ttf")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(err) // Handle error if font loading fails
 	}
 
-	// Add text to the image
-	err = img.Text(font, picrocess.NewRGBA(255, 0, 0, 255), picrocess.NewOffset(100, 100), 24, "Hello, World!")
+	// Calculate the width of the text "Scan me!" at font size 24
+	ow, _ := font.TextSize(24, "Scan me!")
+
+	// Add the text "Scan me!" to the center of the QR code
+	err = qrCode.Text(font, picrocess.NewRGBA(255, 0, 0, 255), picrocess.NewOffset((256-ow)/2, 0), 24, "Scan me!")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(err) // Handle error if adding text fails
 	}
 
-	// Save the modified image as a PNG
-	err = img.SaveAsPNG("output.png")
+	// Save the modified QR code image with the text as a PNG file
+	err = qrCode.SaveAsPNG("qrcode_output.png")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(err) // Handle error if saving the PNG file fails
 	}
 
-	fmt.Println("Image saved as output.png")
+	// Print a success message
+	fmt.Println("QR code saved as qrcode_output.png")
 }
 ```
 
@@ -146,6 +153,14 @@ func NewGIF() *GIF
 - `Append(image *Image, delay int)`: Append a frame to the GIF with a specified delay.
 - `ToGIFByte() ([]byte, error)`: Convert the GIF to a byte slice.
 - `SaveAsGIF(filename string) error`: Save the GIF as a file.
+
+### `QRCode`
+
+The `QRCode` type represents a QR code image.
+
+```go
+func NewQRCode(content string, size int, fgColor RGBA, bgColor RGBA) (*Image, error)
+```
 
 ## Supported Formats
 

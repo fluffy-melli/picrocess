@@ -16,6 +16,7 @@ import (
 
 	"github.com/golang/freetype"
 	"github.com/golang/freetype/truetype"
+	"github.com/skip2/go-qrcode"
 	"golang.org/x/image/math/fixed"
 )
 
@@ -454,4 +455,36 @@ func Palette(frame *image.RGBA) color.Palette {
 		colors = colors[:256]
 	}
 	return colors
+}
+
+func NewQRCode(content string, size int, fgColor RGBA, bgColor RGBA) (*Image, error) {
+	qr, err := qrcode.New(content, qrcode.High)
+	if err != nil {
+		return nil, err
+	}
+	qr.BackgroundColor = color.RGBA{
+		R: bgColor.R,
+		G: bgColor.G,
+		B: bgColor.B,
+		A: bgColor.A,
+	}
+	qr.ForegroundColor = color.RGBA{
+		R: fgColor.R,
+		G: fgColor.G,
+		B: fgColor.B,
+		A: fgColor.A,
+	}
+	binary, err := qr.PNG(size)
+	if err != nil {
+		return nil, err
+	}
+	reader := bytes.NewReader(binary)
+	img, _, err := image.Decode(reader)
+	if err != nil {
+		return nil, err
+	}
+	bounds := img.Bounds()
+	rgba := image.NewRGBA(bounds)
+	draw.Draw(rgba, bounds, img, bounds.Min, draw.Over)
+	return Render(rgba), nil
 }
