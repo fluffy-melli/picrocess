@@ -20,29 +20,19 @@ import (
 )
 
 type RGBA struct {
-	R uint8
-	G uint8
-	B uint8
-	A uint8
+	R, G, B, A uint8
 }
 
-func NewRGBA(r, g, b uint8, a ...uint8) *RGBA {
-	if len(a) == 0 {
-		a = append(a, 255)
+func NewRGBA(r, g, b uint8, a ...uint8) RGBA {
+	alpha := uint8(255)
+	if len(a) > 0 {
+		alpha = a[0]
 	}
-	return &RGBA{
-		R: r,
-		G: g,
-		B: b,
-		A: a[0],
-	}
+	return RGBA{r, g, b, alpha}
 }
 
 type Rect struct {
-	W1 uint
-	H1 uint
-	W2 uint
-	H2 uint
+	W1, H1, W2, H2 uint
 }
 
 func NewRect(w1, h1, w2, h2 uint) *Rect {
@@ -67,8 +57,8 @@ type Offset struct {
 	H uint
 }
 
-func NewOffset(w, h uint) *Offset {
-	return &Offset{
+func NewOffset(w, h uint) Offset {
+	return Offset{
 		W: w,
 		H: h,
 	}
@@ -105,21 +95,20 @@ func (f *Font) TextSize(size float64, text string) (uint, uint) {
 }
 
 type Image struct {
-	Width  uint
-	Height uint
-	Pixel  map[uint]map[uint]RGBA // X / Y
+	Width, Height uint
+	Pixel         [][]RGBA // X / Y
 }
 
-func NewImage(w, h uint, color *RGBA) *Image {
+func NewImage(w, h uint, color RGBA) *Image {
 	var respond = Image{
 		Width:  w,
 		Height: h,
-		Pixel:  make(map[uint]map[uint]RGBA),
+		Pixel:  make([][]RGBA, w),
 	}
 	for x := uint(0); x < w; x++ {
-		respond.Pixel[x] = make(map[uint]RGBA)
+		respond.Pixel[x] = make([]RGBA, h)
 		for y := uint(0); y < h; y++ {
-			respond.Pixel[x][y] = *color
+			respond.Pixel[x][y] = color
 		}
 	}
 	return &respond
@@ -157,49 +146,42 @@ func ImageURL(url string) (*Image, error) {
 	return Render(rgba), nil
 }
 
-func (i *Image) At(x, y uint) *RGBA {
-	if x > i.Width || y > i.Height {
-		return &RGBA{0, 0, 0, 0}
+func (i *Image) At(x, y uint) RGBA {
+	if x >= i.Width || y >= i.Height {
+		return RGBA{0, 0, 0, 0}
 	}
-	pixel := i.Pixel[x][y]
-	return &pixel
+	return i.Pixel[x][y]
 }
 
-func (i *Image) Set(x, y uint, c *RGBA) {
-	if i.Pixel[x] == nil {
-		i.Pixel[x] = map[uint]RGBA{}
+func (i *Image) Set(x, y uint, c RGBA) {
+	if x >= i.Width || y >= i.Height {
+		return
 	}
-	i.Pixel[x][y] = *c
+	i.Pixel[x][y] = c
 }
 
-func (i *Image) Overlay(i2 *Image, o *Offset) {
+func (i *Image) Overlay(i2 *Image, o Offset) {
 	for x := range i2.Pixel {
 		for y := range i2.Pixel[x] {
-			pixel := i2.At(x, y)
-			if pixel == nil {
-				pixel = &RGBA{0, 0, 0, 0}
-			}
-			destPixel := i.At(o.W+x, o.H+y)
-			if destPixel == nil {
-				destPixel = &RGBA{0, 0, 0, 0}
-			}
+			pixel := i2.At(uint(x), uint(y))
+			destPixel := i.At(o.W+uint(x), o.H+uint(y))
 			if pixel.A == 255 && destPixel.A == 255 {
-				i.Set(o.W+x, o.H+y, pixel)
+				i.Set(o.W+uint(x), o.H+uint(y), pixel)
 				continue
 			}
 			if pixel.A == 255 && destPixel.A == 0 {
-				i.Set(o.W+x, o.H+y, pixel)
+				i.Set(o.W+uint(x), o.H+uint(y), pixel)
 				continue
 			}
 			if pixel.A == 0 && destPixel.A == 255 {
-				i.Set(o.W+x, o.H+y, destPixel)
+				i.Set(o.W+uint(x), o.H+uint(y), destPixel)
 				continue
 			}
 			alpha := float64(pixel.A) / 255.0
 			blendR := (1-alpha)*float64(destPixel.R) + alpha*float64(pixel.R)
 			blendG := (1-alpha)*float64(destPixel.G) + alpha*float64(pixel.G)
 			blendB := (1-alpha)*float64(destPixel.B) + alpha*float64(pixel.B)
-			i.Set(o.W+x, o.H+y, &RGBA{
+			i.Set(o.W+uint(x), o.H+uint(y), RGBA{
 				R: uint8(blendR),
 				G: uint8(blendG),
 				B: uint8(blendB),
@@ -210,17 +192,14 @@ func (i *Image) Overlay(i2 *Image, o *Offset) {
 }
 
 func (i *Image) Resize(w, h uint) {
-	newPixel := make(map[uint]map[uint]RGBA)
-	for x := uint(0); x < w; x++ {
-		newPixel[x] = make(map[uint]RGBA)
-		for y := uint(0); y < w; y++ {
-			srcX := x * i.Width / w
-			srcY := y * i.Height / h
+	newPixel := make([][]RGBA, w)
+	for x := range newPixel {
+		newPixel[x] = make([]RGBA, h)
+		for y := range newPixel[x] {
+			srcX := uint(x) * i.Width / w
+			srcY := uint(y) * i.Height / h
 			pixel := i.At(srcX, srcY)
-			if pixel == nil {
-				pixel = &RGBA{0, 0, 0, 0}
-			}
-			newPixel[x][y] = *pixel
+			newPixel[x][y] = pixel
 		}
 	}
 	i.Pixel = newPixel
@@ -232,34 +211,34 @@ func (i *Image) Crop(r *Rect) *Image {
 	cropped := &Image{
 		Width:  r.Dx(),
 		Height: r.Dy(),
-		Pixel:  make(map[uint]map[uint]RGBA),
+		Pixel:  make([][]RGBA, r.Dx()),
 	}
 	for x := range cropped.Pixel {
-		cropped.Pixel[x] = make(map[uint]RGBA)
+		cropped.Pixel[x] = make([]RGBA, r.Dy())
 		for y := range cropped.Pixel[x] {
-			srcX := r.W1 + x
-			srcY := r.H1 + y
-			cropped.Pixel[x][y] = *i.At(srcX, srcY)
+			srcX := r.W1 + uint(x)
+			srcY := r.H1 + uint(y)
+			cropped.Pixel[x][y] = i.At(srcX, srcY)
 		}
 	}
 	return cropped
 }
 
 func (i *Image) Round(px uint) {
-	for x := uint(0); x < i.Width; x++ {
-		for y := uint(0); y < i.Height; y++ {
-			if x >= px && x <= i.Width-px || y >= px && y <= i.Width-px {
+	for x := range i.Pixel {
+		for y := range i.Pixel[x] {
+			if uint(x) >= px && uint(x) <= i.Width-px || uint(y) >= px && uint(y) <= i.Width-px {
 				continue
 			}
 			var dx float64
 			var dy float64
-			if x <= px && y <= px {
+			if uint(x) <= px && uint(y) <= px {
 				dx = float64(px)
 				dy = float64(px)
-			} else if x <= px && y > i.Width-px {
+			} else if uint(x) <= px && uint(y) > i.Width-px {
 				dx = float64(px)
 				dy = float64(i.Height - px)
-			} else if x >= i.Width-px && y <= px {
+			} else if uint(x) >= i.Width-px && uint(y) <= px {
 				dx = float64(i.Width - px)
 				dy = float64(px)
 			} else {
@@ -268,13 +247,13 @@ func (i *Image) Round(px uint) {
 			}
 			distance := math.Sqrt(math.Pow(float64(x)-dx, 2) + math.Pow(float64(y)-dy, 2))
 			if distance > float64(px) {
-				i.Set(x, y, &RGBA{0, 0, 0, 0})
+				i.Set(uint(x), uint(y), RGBA{0, 0, 0, 0})
 			}
 		}
 	}
 }
 
-func (i *Image) Text(font *Font, c *RGBA, o *Offset, size float64, text string) error {
+func (i *Image) Text(font *Font, c RGBA, o Offset, size float64, text string) error {
 	img := i.Render()
 	pt := freetype.Pt(int(o.W), int(o.H)+int(size))
 	ctx := freetype.NewContext()
@@ -289,9 +268,6 @@ func (i *Image) Text(font *Font, c *RGBA, o *Offset, size float64, text string) 
 		return err
 	}
 	for x := range i.Pixel {
-		if i.Pixel[x] == nil {
-			i.Pixel[x] = make(map[uint]RGBA)
-		}
 		for y := range i.Pixel[x] {
 			r, g, b, a := img.RGBAAt(int(x), int(y)).RGBA()
 			i.Pixel[x][y] = RGBA{R: uint8(r), G: uint8(g), B: uint8(b), A: uint8(a)}
@@ -303,6 +279,9 @@ func (i *Image) Text(font *Font, c *RGBA, o *Offset, size float64, text string) 
 func (i *Image) Render() *image.RGBA {
 	img := image.NewRGBA(image.Rect(0, 0, int(i.Width), int(i.Height)))
 	for x := range i.Pixel {
+		if i.Pixel[x] == nil {
+			continue
+		}
 		for y := range i.Pixel[x] {
 			pixel := i.Pixel[x][y]
 			img.Set(int(x), int(y), color.RGBA{pixel.R, pixel.G, pixel.B, pixel.A})
@@ -317,12 +296,10 @@ func Render(i *image.RGBA) *Image {
 	img := &Image{
 		Width:  width,
 		Height: height,
-		Pixel:  make(map[uint]map[uint]RGBA),
-	}
-	for x := uint(0); x < width; x++ {
-		img.Pixel[x] = make(map[uint]RGBA)
+		Pixel:  make([][]RGBA, width),
 	}
 	for x := 0; x < int(width); x++ {
+		img.Pixel[x] = make([]RGBA, height)
 		for y := 0; y < int(height); y++ {
 			c := i.At(x, y)
 			rgba, ok := c.(color.RGBA)
@@ -425,24 +402,18 @@ func (i *GIF) ToGIFByte() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func (i *GIF) ToGIFBuffer() (*bytes.Buffer, error) {
-	var result []*image.Paletted
-	var disposal []byte
-	for _, key := range i.Image {
-		palette := Palette(key)
-		palettedImage := image.NewPaletted(key.Bounds(), palette)
-		for y := 0; y < palettedImage.Bounds().Dy(); y++ {
-			for x := 0; x < palettedImage.Bounds().Dx(); x++ {
-				palettedImage.Set(x, y, key.At(x, y))
-			}
-		}
-		result = append(result, palettedImage)
-		disposal = append(disposal, gif.DisposalBackground)
-	}
+func (gf *GIF) ToGIFBuffer() (*bytes.Buffer, error) {
 	var buf bytes.Buffer
+	gifImages := make([]*image.Paletted, len(gf.Image))
+	disposal := make([]byte, len(gf.Image))
+	for i, img := range gf.Image {
+		gifImages[i] = image.NewPaletted(img.Bounds(), Palette(img))
+		draw.Draw(gifImages[i], img.Bounds(), img, image.Point{}, draw.Src)
+		disposal[i] = gif.DisposalBackground
+	}
 	err := gif.EncodeAll(&buf, &gif.GIF{
-		Image:    result,
-		Delay:    i.Delay,
+		Image:    gifImages,
+		Delay:    gf.Delay,
 		Disposal: disposal,
 	})
 	if err != nil {
