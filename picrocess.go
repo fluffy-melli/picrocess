@@ -507,10 +507,11 @@ func (i *Image) Line(r Rect, c RGBA, thickness float64) {
 	}
 }
 
-// Ascii converts the image into an ASCII art string with the specified width and height.
-// The image is resized to the given dimensions, and each pixel is mapped to a corresponding
-// ASCII character based on its brightness level. The resulting string is a visual representation of the image.
-func (i *Image) Ascii(w, h uint) string {
+// The Ascii function converts the image into an ASCII art representation and returns it as a string.
+// The image is resized to the given width (w) and height (h), then rotated 90 degrees,
+// and ASCII characters corresponding to the brightness of each pixel are selected for output.
+// `length` specifies how many times each ASCII character should be repeated.
+func (i *Image) Ascii(w, h, length uint) string {
 	img := *i
 	img.Resize(w, h)
 	img.Rotate90()
@@ -520,7 +521,9 @@ func (i *Image) Ascii(w, h uint) string {
 			pixel := img.Pixel[x][y]
 			brightness := pixel.Brightness()
 			index := brightness * (len(ASCII_CHARS) - 1) / 255
-			respond += ASCII_CHARS[index] + ASCII_CHARS[index] + ASCII_CHARS[index]
+			for i := 0; i < int(length); i++ {
+				respond += ASCII_CHARS[index]
+			}
 		}
 		respond += "\n"
 	}
