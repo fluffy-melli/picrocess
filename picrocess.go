@@ -20,6 +20,13 @@ import (
 	"golang.org/x/image/math/fixed"
 )
 
+var ASCII_CHARS = []string{
+	" ", ".", "'", "`", "^", "\"", ",", ";", ":", "I", "l", "!", "i", ">", "<", "~", "+", "_", "-",
+	"?", "]", "[", "}", "{", "1", ")", "(", "|", "\\", "/", "t", "f", "j", "r", "x", "n", "u", "v",
+	"c", "z", "X", "Y", "U", "J", "C", "L", "Q", "0", "O", "Z", "m", "w", "q", "p", "d", "b", "k", "h",
+	"a", "o", "*", "#", "M", "W", "&", "8", "%", "B", "@", "$",
+}
+
 type RGBA struct {
 	R, G, B, A uint8
 }
@@ -39,6 +46,24 @@ func NewRGBA(r, g, b uint8, a ...uint8) RGBA {
 		alpha = a[0]
 	}
 	return RGBA{r, g, b, alpha}
+}
+
+// Brightness calculates the perceived brightness of the color.
+// It averages the RGB values and then adjusts the result based on the alpha value.
+// The alpha value influences the final brightness, making transparent pixels darker.
+//
+// Returns: An integer representing the brightness of the color (0 to 255).
+func (c RGBA) Brightness() int {
+	r := int(c.R)
+	g := int(c.G)
+	b := int(c.B)
+	a := int(c.A)
+	if a == 0 {
+		return 0
+	}
+	brightness := int(0.299*float64(r) + 0.587*float64(g) + 0.114*float64(b))
+	brightness = brightness * a / 255
+	return brightness
 }
 
 type Rect struct {
@@ -418,6 +443,25 @@ func (i *Image) Line(r Rect, c RGBA, thickness float64) {
 			}
 		}
 	}
+}
+
+// Ascii converts the image into an ASCII art string with the specified width and height.
+// The image is resized to the given dimensions, and each pixel is mapped to a corresponding
+// ASCII character based on its brightness level. The resulting string is a visual representation of the image.
+func (i *Image) Ascii(w, h uint) string {
+	img := *i
+	img.Resize(w, h)
+	respond := ""
+	for x := range img.Pixel {
+		for y := range img.Pixel[x] {
+			pixel := img.Pixel[x][y]
+			brightness := pixel.Brightness()
+			index := brightness * (len(ASCII_CHARS) - 1) / 255
+			respond += ASCII_CHARS[index] + ASCII_CHARS[index]
+		}
+		respond += "\n"
+	}
+	return respond
 }
 
 // Render converts the custom Image structure to an image.RGBA object,

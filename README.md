@@ -83,6 +83,9 @@ The `RGBA` type represents a color with Red, Green, Blue, and Alpha (transparenc
 func NewRGBA(r, g, b uint8, a ...uint8) *RGBA
 ```
 
+#### Methods
+- `Brightness() int`: Brightness calculates the perceived brightness of the color.
+
 ### `Rect`
 
 The `Rect` type represents a rectangle with top-left and bottom-right coordinates.
@@ -133,6 +136,7 @@ func NewImage(w, h uint, color *RGBA) *Image
 - `Text(font *Font, c *RGBA, o *Offset, size float64, text string)`: Render text on the image.
 - `Line(r Rect, c RGBA, thickness float64)`: Draw a line on the image with the specified thickness.
 - `Round(px uint)`: Apply rounded corners to the image with a specified radius in pixels.
+- `Ascii(w, h uint) string`: ASCII character based on its brightness level.
 - `Render() *image.RGBA`: Render the image as an `image.RGBA` type.
 - `ToPNGByte() ([]byte, error)`: Convert the image to a PNG byte slice.
 - `ToJPGByte(quality int) ([]byte, error)`: Convert the image to a JPG byte slice.
