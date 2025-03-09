@@ -40,13 +40,13 @@ func main() {
 	content := "https://www.example.com"
 	
 	// Generate the QR code with the specified content, size, and colors
-	qrCode, err := picrocess.NewQRCode(content, 256, picrocess.NewRGBA(0, 0, 0, 255), picrocess.NewRGBA(255, 255, 255, 255))
+	qrCode, err := picrocess.NewQRCode(picrocess.NewRGBA(255, 255, 255), picrocess.NewRGBA(0, 0, 0), 256, content)
 	if err != nil {
 		log.Fatal(err) // Handle error if QR code generation fails
 	}
 
 	// Load the specified font for text rendering
-	font, err := picrocess.LoadFont("HakgyoansimDunggeunmisoTTF-B.ttf")
+	font, err := picrocess.LoadFont("/path/to/font.ttf")
 	if err != nil {
 		log.Fatal(err) // Handle error if font loading fails
 	}
@@ -55,7 +55,7 @@ func main() {
 	ow, _ := font.TextSize(24, "Scan me!")
 
 	// Add the text "Scan me!" to the center of the QR code
-	err = qrCode.Text(font, picrocess.NewRGBA(255, 0, 0, 255), picrocess.NewOffset((256-ow)/2, 0), 24, "Scan me!")
+	err = qrCode.Text(font, picrocess.NewRGBA(255, 0, 0), picrocess.NewOffset((256-ow)/2, 0), 24, "Scan me!")
 	if err != nil {
 		log.Fatal(err) // Handle error if adding text fails
 	}
@@ -131,6 +131,7 @@ func NewImage(w, h uint, color *RGBA) *Image
 - `Resize(w, h uint)`: Resize the image to the given width and height.
 - `Crop(r *Rect) *Image`: Crop the image to a rectangle.
 - `Text(font *Font, c *RGBA, o *Offset, size float64, text string)`: Render text on the image.
+- `Line(r Rect, c RGBA, thickness float64)`: Draw a line on the image with the specified thickness.
 - `Round(px uint)`: Apply rounded corners to the image with a specified radius in pixels.
 - `Render() *image.RGBA`: Render the image as an `image.RGBA` type.
 - `ToPNGByte() ([]byte, error)`: Convert the image to a PNG byte slice.

@@ -24,6 +24,15 @@ type RGBA struct {
 	R, G, B, A uint8
 }
 
+// NewRGBA creates an RGBA color struct using the provided red (r), green (g), blue (b) values, and an optional alpha (a) value.
+// If the alpha value is not provided, it defaults to 255 (fully opaque).
+//
+// r: Red value (0-255)
+// g: Green value (0-255)
+// b: Blue value (0-255)
+// a: (Optional) Alpha value (0-255), defaults to 255 if not provided
+//
+// Returns: An RGBA struct initialized with the given color values and alpha.
 func NewRGBA(r, g, b uint8, a ...uint8) RGBA {
 	alpha := uint8(255)
 	if len(a) > 0 {
@@ -36,6 +45,15 @@ type Rect struct {
 	W1, H1, W2, H2 uint
 }
 
+// NewRect creates a new Rect struct using the provided width (w1, w2) and height (h1, h2) values.
+// It returns a pointer to the newly created Rect.
+//
+// w1: The width of the first point
+// h1: The height of the first point
+// w2: The width of the second point
+// h2: The height of the second point
+//
+// Returns: A pointer to a Rect struct initialized with the given dimensions.
 func NewRect(w1, h1, w2, h2 uint) *Rect {
 	return &Rect{
 		W1: w1,
@@ -45,10 +63,18 @@ func NewRect(w1, h1, w2, h2 uint) *Rect {
 	}
 }
 
+// Dx returns the horizontal distance (width) between the two points of the Rect.
+// It calculates the difference between the second width (W2) and the first width (W1).
+//
+// Returns: The horizontal distance between W2 and W1.
 func (r *Rect) Dx() uint {
 	return r.W2 - r.W1
 }
 
+// Dy returns the vertical distance (height) between the two points of the Rect.
+// It calculates the difference between the second height (H2) and the first height (H1).
+//
+// Returns: The vertical distance between H2 and H1.
 func (r *Rect) Dy() uint {
 	return r.H2 - r.H1
 }
@@ -58,6 +84,13 @@ type Offset struct {
 	H uint
 }
 
+// NewOffset creates a new Offset struct using the provided width (w) and height (h) values.
+// It returns the newly created Offset struct.
+//
+// w: The width value
+// h: The height value
+//
+// Returns: An Offset struct initialized with the given width and height.
 func NewOffset(w, h uint) Offset {
 	return Offset{
 		W: w,
@@ -69,6 +102,12 @@ type Font struct {
 	face *truetype.Font
 }
 
+// LoadFont loads a font from the specified file and returns a pointer to a Font struct.
+// If there is an error reading the file or parsing the font, it returns an error.
+//
+// filename: The path to the font file to load.
+//
+// Returns: A pointer to a Font struct containing the parsed font, or an error if any issue occurs.
 func LoadFont(filename string) (*Font, error) {
 	fontBytes, err := os.ReadFile(filename)
 	if err != nil {
@@ -81,6 +120,13 @@ func LoadFont(filename string) (*Font, error) {
 	return &Font{face: fontFace}, nil
 }
 
+// TextSize calculates the width and height of the given text when rendered with the specified font size.
+// It returns the width and height of the text in pixels.
+//
+// size: The font size to use for rendering the text.
+// text: The text to measure.
+//
+// Returns: The width and height of the text in pixels.
 func (f *Font) TextSize(size float64, text string) (uint, uint) {
 	var width uint
 	var height uint
@@ -100,6 +146,14 @@ type Image struct {
 	Pixel         [][]RGBA // X / Y
 }
 
+// NewImage creates a new Image struct with the specified width (w), height (h), and initial color (color).
+// It initializes the pixel data as a 2D slice and sets each pixel to the specified color.
+//
+// w: The width of the image.
+// h: The height of the image.
+// color: The color to fill each pixel in the image.
+//
+// Returns: A pointer to a new Image struct initialized with the given dimensions and color.
 func NewImage(w, h uint, color RGBA) *Image {
 	var respond = Image{
 		Width:  w,
@@ -115,6 +169,12 @@ func NewImage(w, h uint, color RGBA) *Image {
 	return &respond
 }
 
+// LoadImage loads an image from a file, decodes it, and returns an Image struct.
+// It returns an error if the file cannot be opened or the image cannot be decoded.
+//
+// filename: The path to the image file to load.
+//
+// Returns: A pointer to an Image struct containing the decoded image, or an error if any issue occurs.
 func LoadImage(filename string) (*Image, error) {
 	file, err := os.Open(filename)
 	if err != nil {
@@ -131,6 +191,12 @@ func LoadImage(filename string) (*Image, error) {
 	return Render(rgba), nil
 }
 
+// ImageURL loads an image from a URL, decodes it, and returns an Image struct.
+// It returns an error if the HTTP request fails or the image cannot be decoded.
+//
+// url: The URL of the image to load.
+//
+// Returns: A pointer to an Image struct containing the decoded image, or an error if any issue occurs.
 func ImageURL(url string) (*Image, error) {
 	resp, err := http.Get(url)
 	if err != nil {
@@ -147,6 +213,13 @@ func ImageURL(url string) (*Image, error) {
 	return Render(rgba), nil
 }
 
+// At returns the color of the pixel at the specified coordinates (x, y) in the image.
+// If the coordinates are out of bounds, it returns a transparent black color (RGBA{0, 0, 0, 0}).
+//
+// x: The x-coordinate of the pixel.
+// y: The y-coordinate of the pixel.
+//
+// Returns: The color of the pixel at the given coordinates.
 func (i *Image) At(x, y uint) RGBA {
 	if x >= i.Width || y >= i.Height {
 		return RGBA{0, 0, 0, 0}
@@ -154,6 +227,12 @@ func (i *Image) At(x, y uint) RGBA {
 	return i.Pixel[x][y]
 }
 
+// Set sets the color of the pixel at the specified coordinates (x, y) in the image.
+// If the coordinates are out of bounds, it does nothing.
+//
+// x: The x-coordinate of the pixel.
+// y: The y-coordinate of the pixel.
+// c: The color to set at the given coordinates.
 func (i *Image) Set(x, y uint, c RGBA) {
 	if x >= i.Width || y >= i.Height {
 		return
@@ -161,6 +240,14 @@ func (i *Image) Set(x, y uint, c RGBA) {
 	i.Pixel[x][y] = c
 }
 
+// Overlay overlays the second image (i2) onto the first image (i) at the specified offset (o).
+// The pixel blending is done based on the alpha channel (transparency) of the pixels.
+//
+// i2: The image to overlay on top of the current image (i).
+// o: The offset to position the second image on top of the first image (i).
+//
+// The function blends the pixels based on the alpha values. It uses the formula for alpha blending
+// when both pixels are partially transparent, while fully opaque pixels are copied directly.
 func (i *Image) Overlay(i2 *Image, o Offset) {
 	for x := range i2.Pixel {
 		for y := range i2.Pixel[x] {
@@ -192,6 +279,11 @@ func (i *Image) Overlay(i2 *Image, o Offset) {
 	}
 }
 
+// Resize resizes the image to the specified width (w) and height (h) using nearest-neighbor scaling.
+// It creates a new pixel array with the new size and maps the pixels from the original image to the resized one.
+//
+// w: The new width of the image.
+// h: The new height of the image.
 func (i *Image) Resize(w, h uint) {
 	newPixel := make([][]RGBA, w)
 	for x := range newPixel {
@@ -208,6 +300,12 @@ func (i *Image) Resize(w, h uint) {
 	i.Height = h
 }
 
+// Crop crops a section of the image based on the given rectangle (r).
+// It returns a new image that represents the cropped region.
+//
+// r: The rectangle defining the region to crop.
+//
+// Returns: A new Image struct containing the cropped region.
 func (i *Image) Crop(r *Rect) *Image {
 	cropped := &Image{
 		Width:  r.Dx(),
@@ -225,6 +323,12 @@ func (i *Image) Crop(r *Rect) *Image {
 	return cropped
 }
 
+// Round applies a rounding effect to the corners of the image by setting pixels outside a circular region to transparent.
+// The rounded corners are based on the specified pixel radius (px).
+//
+// px: The radius of the rounded corner, in pixels.
+//
+// This function modifies the image by setting the pixels outside the rounded area to transparent.
 func (i *Image) Round(px uint) {
 	for x := range i.Pixel {
 		for y := range i.Pixel[x] {
@@ -254,6 +358,16 @@ func (i *Image) Round(px uint) {
 	}
 }
 
+// Text draws the specified text on the image using the provided font, color, offset, and size.
+// It renders the text at the specified offset (o) on the image (i), with the given font size and color.
+//
+// font: The Font object to use for rendering the text.
+// c: The color (RGBA) to use for the text.
+// o: The offset specifying where to draw the text on the image.
+// size: The font size to use for rendering the text.
+// text: The string of text to be drawn on the image.
+//
+// Returns: An error if there is an issue rendering the text.
 func (i *Image) Text(font *Font, c RGBA, o Offset, size float64, text string) error {
 	img := i.Render()
 	pt := freetype.Pt(int(o.W), int(o.H)+int(size))
@@ -277,6 +391,39 @@ func (i *Image) Text(font *Font, c RGBA, o Offset, size float64, text string) er
 	return nil
 }
 
+func pointToLineDistance(x1, y1, x2, y2, px, py float64) float64 {
+	vx, vy := x2-x1, y2-y1
+	wx, wy := px-x1, py-y1
+	cross := math.Abs(vx*wy - vy*wx)
+	length := math.Sqrt(vx*vx + vy*vy)
+	if length == 0 {
+		return math.Sqrt(wx*wx + wy*wy)
+	}
+	return cross / length
+}
+
+// Line draws a line on the image from point (r.W1, r.H1) to point (r.W2, r.H2) with the specified color (c)
+// and thickness. It iterates over the pixels of the image and sets the pixel color to the specified color
+// if the pixel is within the thickness of the line.
+//
+// r: The rectangle defining the start and end points of the line (W1, H1) to (W2, H2).
+// c: The color (RGBA) to use for the line.
+// thickness: The thickness of the line.
+func (i *Image) Line(r Rect, c RGBA, thickness float64) {
+	for x := range i.Pixel {
+		for y := range i.Pixel[x] {
+			distance := pointToLineDistance(float64(r.W1), float64(r.H1), float64(r.W2), float64(r.H2), float64(x), float64(y))
+			if distance <= thickness/2 {
+				i.Set(uint(x), uint(y), c)
+			}
+		}
+	}
+}
+
+// Render converts the custom Image structure to an image.RGBA object,
+// mapping each pixel in the custom Image to the corresponding color in the RGBA image.
+//
+// Returns: A pointer to an image.RGBA object representing the image.
 func (i *Image) Render() *image.RGBA {
 	img := image.NewRGBA(image.Rect(0, 0, int(i.Width), int(i.Height)))
 	for x := range i.Pixel {
@@ -291,6 +438,12 @@ func (i *Image) Render() *image.RGBA {
 	return img
 }
 
+// Render converts an image.RGBA object back into the custom Image structure,
+// extracting pixel values from the image and storing them in the custom Image format.
+//
+// i: The image.RGBA object to convert into the custom Image format.
+//
+// Returns: A pointer to an Image object representing the custom image format.
 func Render(i *image.RGBA) *Image {
 	width := uint(i.Bounds().Dx())
 	height := uint(i.Bounds().Dy())
@@ -318,6 +471,7 @@ func Render(i *image.RGBA) *Image {
 	return img
 }
 
+// ToPNGByte converts the Image to a PNG byte slice.
 func (i *Image) ToPNGByte() ([]byte, error) {
 	buffer, err := i.ToPNGBuffer()
 	if err != nil {
@@ -326,6 +480,7 @@ func (i *Image) ToPNGByte() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
+// ToJPGByte converts the Image to a JPG byte slice with the specified quality.
 func (i *Image) ToJPGByte(quality int) ([]byte, error) {
 	buffer, err := i.ToJPGBuffer(quality)
 	if err != nil {
@@ -334,6 +489,7 @@ func (i *Image) ToJPGByte(quality int) ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
+// ToPNGBuffer converts the Image to a PNG format and returns a bytes.Buffer.
 func (i *Image) ToPNGBuffer() (*bytes.Buffer, error) {
 	img := i.Render()
 	var buf bytes.Buffer
@@ -343,6 +499,7 @@ func (i *Image) ToPNGBuffer() (*bytes.Buffer, error) {
 	return &buf, nil
 }
 
+// ToJPGBuffer converts the Image to a JPG format with the specified quality and returns a bytes.Buffer.
 func (i *Image) ToJPGBuffer(quality int) (*bytes.Buffer, error) {
 	img := i.Render()
 	var buf bytes.Buffer
@@ -353,6 +510,7 @@ func (i *Image) ToJPGBuffer(quality int) (*bytes.Buffer, error) {
 	return &buf, nil
 }
 
+// SaveAsPNG saves the Image as a PNG file to the specified path.
 func (i *Image) SaveAsPNG(filename string) error {
 	img := i.Render()
 	file, err := os.Create(filename)
@@ -367,6 +525,7 @@ func (i *Image) SaveAsPNG(filename string) error {
 	return nil
 }
 
+// SaveAsJPG saves the Image as a JPG file to the specified path with the specified quality.
 func (i *Image) SaveAsJPG(filename string, quality int) error {
 	img := i.Render()
 	file, err := os.Create(filename)
@@ -383,6 +542,7 @@ type GIF struct {
 	Image []*image.RGBA
 }
 
+// NewGIF creates and returns a new GIF object.
 func NewGIF() *GIF {
 	return &GIF{
 		Delay: make([]int, 0),
@@ -390,11 +550,13 @@ func NewGIF() *GIF {
 	}
 }
 
+// Append adds a new frame (image) to the GIF with a specified delay.
 func (gf *GIF) Append(image *Image, delay int) {
 	gf.Delay = append(gf.Delay, delay)
 	gf.Image = append(gf.Image, image.Render())
 }
 
+// ToGIFByte converts the GIF object to a byte slice in GIF format.
 func (i *GIF) ToGIFByte() ([]byte, error) {
 	buffer, err := i.ToGIFBuffer()
 	if err != nil {
@@ -403,12 +565,13 @@ func (i *GIF) ToGIFByte() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
+// ToGIFBuffer converts the GIF object into a bytes buffer containing the GIF data.
 func (gf *GIF) ToGIFBuffer() (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	gifImages := make([]*image.Paletted, len(gf.Image))
 	disposal := make([]byte, len(gf.Image))
 	for i, img := range gf.Image {
-		gifImages[i] = image.NewPaletted(img.Bounds(), Palette(img))
+		gifImages[i] = image.NewPaletted(img.Bounds(), Palette(img, 256*256*256))
 		draw.Draw(gifImages[i], img.Bounds(), img, image.Point{}, draw.Src)
 		disposal[i] = gif.DisposalBackground
 	}
@@ -423,6 +586,7 @@ func (gf *GIF) ToGIFBuffer() (*bytes.Buffer, error) {
 	return &buf, nil
 }
 
+// SaveAsGIF saves the GIF data to a file.
 func (i *GIF) SaveAsGIF(filename string) error {
 	data, err := i.ToGIFByte()
 	if err != nil {
@@ -440,7 +604,10 @@ func (i *GIF) SaveAsGIF(filename string) error {
 	return nil
 }
 
-func Palette(frame *image.RGBA) color.Palette {
+// Palette generates a color palette for the given RGBA frame, with a customizable limit on the number of colors.
+// It extracts unique colors from the image and returns a color.Palette.
+// If the number of colors exceeds the limit, the palette is truncated to the specified limit.
+func Palette(frame *image.RGBA, limit int) color.Palette {
 	colorSet := make(map[color.RGBA]struct{})
 	for y := 0; y < frame.Bounds().Dy(); y++ {
 		for x := 0; x < frame.Bounds().Dx(); x++ {
@@ -451,13 +618,15 @@ func Palette(frame *image.RGBA) color.Palette {
 	for c := range colorSet {
 		colors = append(colors, c)
 	}
-	if len(colors) > 256 {
-		colors = colors[:256]
+	if len(colors) > limit {
+		colors = colors[:limit]
 	}
 	return colors
 }
 
-func NewQRCode(content string, size int, fgColor RGBA, bgColor RGBA) (*Image, error) {
+// NewQRCode generates a new QR code image from the given content, with customizable foreground and background colors.
+// It creates a QR code of the specified size and color options, and returns the generated image.
+func NewQRCode(bgColor, fgColor RGBA, size int, content string) (*Image, error) {
 	qr, err := qrcode.New(content, qrcode.High)
 	if err != nil {
 		return nil, err
