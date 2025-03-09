@@ -133,9 +133,13 @@ func NewImage(w, h uint, color *RGBA) *Image
 - `Overlay(i2 *Image, o *Offset)`: Overlay another image on top of the current image.
 - `Resize(w, h uint)`: Resize the image to the given width and height.
 - `Crop(r *Rect) *Image`: Crop the image to a rectangle.
+- `Rotate90()`: Rotates each pixel by 90 degrees
+- `RotateMinus90()`: Rotates each pixel by -90 degrees
+- `FlipHorizontal()`: Flips the image horizontally (left to right).
+- `FlipVertical()`: Flips the image vertically (top to bottom).
+- `Round(px uint)`: Apply rounded corners to the image with a specified radius in pixels.
 - `Text(font *Font, c *RGBA, o *Offset, size float64, text string)`: Render text on the image.
 - `Line(r Rect, c RGBA, thickness float64)`: Draw a line on the image with the specified thickness.
-- `Round(px uint)`: Apply rounded corners to the image with a specified radius in pixels.
 - `Ascii(w, h uint) string`: ASCII character based on its brightness level.
 - `Render() *image.RGBA`: Render the image as an `image.RGBA` type.
 - `ToPNGByte() ([]byte, error)`: Convert the image to a PNG byte slice.

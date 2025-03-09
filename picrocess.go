@@ -383,6 +383,68 @@ func (i *Image) Round(px uint) {
 	}
 }
 
+// Rotate90 rotates the image 90 degrees clockwise.
+// It creates a new pixel array, rotates each pixel by 90 degrees,
+// and then updates the original image with the new rotated pixel data.
+func (i *Image) Rotate90() {
+	newPixel := make([][]RGBA, i.Height)
+	for x := range newPixel {
+		newPixel[x] = make([]RGBA, i.Width)
+	}
+	for x := range i.Pixel {
+		for y := range i.Pixel[x] {
+			pixel := i.At(uint(x), uint(y))
+			newPixel[y][i.Height-1-uint(x)] = pixel
+		}
+	}
+	i.Pixel = newPixel
+	i.Width, i.Height = i.Height, i.Width
+}
+
+// RotateMinus90 rotates the image 90 degrees counterclockwise (anti-clockwise).
+// It creates a new pixel array, rotates each pixel by -90 degrees,
+// and then updates the original image with the new rotated pixel data.
+func (i *Image) RotateMinus90() {
+	newPixel := make([][]RGBA, i.Height)
+	for x := range newPixel {
+		newPixel[x] = make([]RGBA, i.Width)
+	}
+	for x := 0; x < int(i.Width); x++ {
+		for y := 0; y < int(i.Height); y++ {
+			pixel := i.At(uint(x), uint(y))
+			newPixel[i.Height-1-uint(y)][x] = pixel
+		}
+	}
+	i.Pixel = newPixel
+	i.Width, i.Height = i.Height, i.Width
+}
+
+// FlipHorizontal flips the image horizontally (left to right).
+// It mirrors the pixels in each row.
+func (i *Image) FlipHorizontal() {
+	for y := 0; y < int(i.Height); y++ {
+		for x := 0; x < int(i.Width)/2; x++ {
+			leftPixel := i.At(uint(x), uint(y))
+			rightPixel := i.At(uint(i.Width-1-uint(x)), uint(y))
+			i.Pixel[x][y] = rightPixel
+			i.Pixel[i.Width-1-uint(x)][y] = leftPixel
+		}
+	}
+}
+
+// FlipVertical flips the image vertically (top to bottom).
+// It mirrors the pixels in each column.
+func (i *Image) FlipVertical() {
+	for x := 0; x < int(i.Width); x++ {
+		for y := 0; y < int(i.Height)/2; y++ {
+			topPixel := i.At(uint(x), uint(y))
+			bottomPixel := i.At(uint(x), uint(i.Height-1-uint(y)))
+			i.Pixel[x][y] = bottomPixel
+			i.Pixel[x][i.Height-1-uint(y)] = topPixel
+		}
+	}
+}
+
 // Text draws the specified text on the image using the provided font, color, offset, and size.
 // It renders the text at the specified offset (o) on the image (i), with the given font size and color.
 //
@@ -451,13 +513,14 @@ func (i *Image) Line(r Rect, c RGBA, thickness float64) {
 func (i *Image) Ascii(w, h uint) string {
 	img := *i
 	img.Resize(w, h)
+	img.Rotate90()
 	respond := ""
 	for x := range img.Pixel {
 		for y := range img.Pixel[x] {
 			pixel := img.Pixel[x][y]
 			brightness := pixel.Brightness()
 			index := brightness * (len(ASCII_CHARS) - 1) / 255
-			respond += ASCII_CHARS[index] + ASCII_CHARS[index]
+			respond += ASCII_CHARS[index] + ASCII_CHARS[index] + ASCII_CHARS[index]
 		}
 		respond += "\n"
 	}
