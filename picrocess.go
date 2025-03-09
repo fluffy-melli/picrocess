@@ -515,6 +515,7 @@ func (i *Image) Ascii(w, h, length uint) string {
 	img := *i
 	img.Resize(w, h)
 	img.Rotate90()
+	img.FlipVertical()
 	respond := ""
 	for x := range img.Pixel {
 		for y := range img.Pixel[x] {
