@@ -79,8 +79,8 @@ type Rect struct {
 // h2: The height of the second point
 //
 // Returns: A pointer to a Rect struct initialized with the given dimensions.
-func NewRect(w1, h1, w2, h2 uint) *Rect {
-	return &Rect{
+func NewRect(w1, h1, w2, h2 uint) Rect {
+	return Rect{
 		W1: w1,
 		H1: h1,
 		W2: w2,
@@ -265,6 +265,24 @@ func (i *Image) Set(x, y uint, c RGBA) {
 	i.Pixel[x][y] = c
 }
 
+// The To function searches for a specific color (b) in the image and replaces it with a new color (a).
+//
+// Parameters:
+//   - b: The color to be replaced (target color)
+//   - a: The color to replace with (new color)
+//
+// This function iterates through all the pixels of the image and if a pixel matches color b,
+// it replaces that pixel with color a.
+func (i *Image) To(b, a RGBA) {
+	for x := range i.Pixel {
+		for y := range i.Pixel[x] {
+			if i.Pixel[x][y] == b {
+				i.Pixel[x][y] = a
+			}
+		}
+	}
+}
+
 // Overlay overlays the second image (i2) onto the first image (i) at the specified offset (o).
 // The pixel blending is done based on the alpha channel (transparency) of the pixels.
 //
@@ -331,7 +349,7 @@ func (i *Image) Resize(w, h uint) {
 // r: The rectangle defining the region to crop.
 //
 // Returns: A new Image struct containing the cropped region.
-func (i *Image) Crop(r *Rect) *Image {
+func (i *Image) Crop(r Rect) *Image {
 	cropped := &Image{
 		Width:  r.Dx(),
 		Height: r.Dy(),
@@ -480,13 +498,23 @@ func (i *Image) Text(font *Font, c RGBA, o Offset, size float64, text string) er
 
 func pointToLineDistance(x1, y1, x2, y2, px, py float64) float64 {
 	vx, vy := x2-x1, y2-y1
-	wx, wy := px-x1, py-y1
-	cross := math.Abs(vx*wy - vy*wx)
-	length := math.Sqrt(vx*vx + vy*vy)
-	if length == 0 {
-		return math.Sqrt(wx*wx + wy*wy)
+	lenSq := vx*vx + vy*vy
+	if lenSq == 0 {
+		dx, dy := px-x1, py-y1
+		return math.Sqrt(dx*dx + dy*dy)
 	}
-	return cross / length
+	wx, wy := px-x1, py-y1
+	t := (wx*vx + wy*vy) / lenSq
+	if t < 0 {
+		return math.Sqrt(wx*wx + wy*wy)
+	} else if t > 1 {
+		dx, dy := px-x2, py-y2
+		return math.Sqrt(dx*dx + dy*dy)
+	}
+	projX := x1 + t*vx
+	projY := y1 + t*vy
+	dx, dy := px-projX, py-projY
+	return math.Sqrt(dx*dx + dy*dy)
 }
 
 // Line draws a line on the image from point (r.W1, r.H1) to point (r.W2, r.H2) with the specified color (c)
@@ -767,4 +795,74 @@ func NewQRCode(bgColor, fgColor RGBA, size int, content string) (*Image, error) 
 	rgba := image.NewRGBA(bounds)
 	draw.Draw(rgba, bounds, img, bounds.Min, draw.Over)
 	return Render(rgba), nil
+}
+
+type GrapeLayer struct {
+	Value float64
+}
+
+type LineGrape struct {
+	Value []float64
+}
+
+func NewLineGrape() *LineGrape {
+	return &LineGrape{
+		Value: make([]float64, 0),
+	}
+}
+
+func (g *LineGrape) Append(v float64) {
+	g.Value = append(g.Value, v)
+}
+
+func (g *LineGrape) Render() *Image {
+	min := func(values []float64) float64 {
+		if len(values) == 0 {
+			return 0
+		}
+		minValue := values[0]
+		for _, v := range values {
+			if v < minValue {
+				minValue = v
+			}
+		}
+		return minValue
+	}(g.Value)
+	max := func(values []float64) float64 {
+		if len(values) == 0 {
+			return 0
+		}
+		maxValue := values[0]
+		for _, v := range values {
+			if v > maxValue {
+				maxValue = v
+			}
+		}
+		return maxValue
+	}(g.Value)
+	base := NewImage(700, 500, NewRGBA(255, 255, 255))
+	base.Line(NewRect(30, 30, 30, 470), NewRGBA(120, 120, 120), 2)
+	base.Line(NewRect(30, 30, 670, 30), NewRGBA(120, 120, 120), 2)
+	base.Line(NewRect(30, 470, 670, 470), NewRGBA(120, 120, 120), 2)
+	base.Line(NewRect(670, 30, 670, 470), NewRGBA(120, 120, 120), 2)
+	lastX := uint(30)
+	lastY := uint(0)
+	for i := uint(0); i < 6; i++ {
+		base.Line(NewRect(30, 440/6*(i+1)+30, 670, 440/6*(i+1)+30), NewRGBA(120, 120, 120), 1)
+	}
+	step := float64(640) / float64(len(g.Value))
+	for i := range g.Value {
+		x := uint(step*float64(i)) + 30
+		y := 500 - (uint((g.Value[i]-min)/(max-min)*440) + 30)
+		if i == 0 {
+			lastY = y
+		}
+		base.Line(NewRect(lastX, lastY, x, y), NewRGBA(255, 0, 0), 2)
+		if i != len(g.Value)-1 {
+			base.Line(NewRect(x, 30, x, 470), NewRGBA(120, 120, 120), 1)
+		}
+		lastX = x
+		lastY = y
+	}
+	return base
 }
