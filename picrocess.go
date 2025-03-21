@@ -517,6 +517,22 @@ func pointToLineDistance(x1, y1, x2, y2, px, py float64) float64 {
 	return math.Sqrt(dx*dx + dy*dy)
 }
 
+// applyAntialiasing applies antialiasing to the line drawing process by blending colors
+// for pixels near the line edges based on their distance from the line.
+func (i *Image) applyAntialiasing(x, y uint, c RGBA, distance, thickness float64) {
+	if distance <= thickness/2 {
+		alpha := uint8(255 * (1 - distance/(thickness/2)))
+		original := i.At(x, y)
+		blended := RGBA{
+			R: uint8((float64(original.R)*(255-float64(alpha)) + float64(c.R)*float64(alpha)) / 255),
+			G: uint8((float64(original.G)*(255-float64(alpha)) + float64(c.G)*float64(alpha)) / 255),
+			B: uint8((float64(original.B)*(255-float64(alpha)) + float64(c.B)*float64(alpha)) / 255),
+			A: uint8(math.Max(float64(original.A), float64(alpha))),
+		}
+		i.Set(x, y, blended)
+	}
+}
+
 // Line draws a line on the image from point (r.W1, r.H1) to point (r.W2, r.H2) with the specified color (c)
 // and thickness. It iterates over the pixels of the image and sets the pixel color to the specified color
 // if the pixel is within the thickness of the line.
@@ -524,12 +540,16 @@ func pointToLineDistance(x1, y1, x2, y2, px, py float64) float64 {
 // r: The rectangle defining the start and end points of the line (W1, H1) to (W2, H2).
 // c: The color (RGBA) to use for the line.
 // thickness: The thickness of the line.
-func (i *Image) Line(r Rect, c RGBA, thickness float64) {
+func (i *Image) Line(r Rect, c RGBA, thickness float64, antialiasing bool) {
 	for x := range i.Pixel {
 		for y := range i.Pixel[x] {
 			distance := pointToLineDistance(float64(r.W1), float64(r.H1), float64(r.W2), float64(r.H2), float64(x), float64(y))
 			if distance <= thickness/2 {
-				i.Set(uint(x), uint(y), c)
+				if antialiasing {
+					i.applyAntialiasing(uint(x), uint(y), c, distance, thickness)
+				} else {
+					i.Set(uint(x), uint(y), c)
+				}
 			}
 		}
 	}
@@ -841,14 +861,14 @@ func (g *LineGrape) Render() *Image {
 		return maxValue
 	}(g.Value)
 	base := NewImage(700, 500, NewRGBA(255, 255, 255))
-	base.Line(NewRect(30, 30, 30, 470), NewRGBA(120, 120, 120), 2)
-	base.Line(NewRect(30, 30, 670, 30), NewRGBA(120, 120, 120), 2)
-	base.Line(NewRect(30, 470, 670, 470), NewRGBA(120, 120, 120), 2)
-	base.Line(NewRect(670, 30, 670, 470), NewRGBA(120, 120, 120), 2)
+	base.Line(NewRect(30, 30, 30, 470), NewRGBA(120, 120, 120), 2, false)
+	base.Line(NewRect(30, 30, 670, 30), NewRGBA(120, 120, 120), 2, false)
+	base.Line(NewRect(30, 470, 670, 470), NewRGBA(120, 120, 120), 2, false)
+	base.Line(NewRect(670, 30, 670, 470), NewRGBA(120, 120, 120), 2, false)
 	lastX := uint(30)
 	lastY := uint(0)
 	for i := uint(0); i < 6; i++ {
-		base.Line(NewRect(30, 440/6*(i+1)+30, 670, 440/6*(i+1)+30), NewRGBA(120, 120, 120), 1)
+		base.Line(NewRect(30, 440/6*(i+1)+30, 670, 440/6*(i+1)+30), NewRGBA(120, 120, 120), 1, true)
 	}
 	step := float64(640) / float64(len(g.Value))
 	for i := range g.Value {
@@ -857,9 +877,9 @@ func (g *LineGrape) Render() *Image {
 		if i == 0 {
 			lastY = y
 		}
-		base.Line(NewRect(lastX, lastY, x, y), NewRGBA(255, 0, 0), 2)
+		base.Line(NewRect(lastX, lastY, x, y), NewRGBA(255, 0, 0), 3, true)
 		if i != len(g.Value)-1 {
-			base.Line(NewRect(x, 30, x, 470), NewRGBA(120, 120, 120), 1)
+			base.Line(NewRect(x, 30, x, 470), NewRGBA(120, 120, 120), 1, false)
 		}
 		lastX = x
 		lastY = y
